@@ -1596,12 +1596,6 @@ BO_ 914 S_MDPS11: 8 XXX
  SG_ CF_Mdps_AliveCnt : 47|8@0+ (1,0) [0|255] "" XXX
  SG_ CF_Mdps_Chksum : 63|8@0+ (1,0) [0|255] "" XXX
 
-BO_ 357 S_MDPS12: 8 XXX
- SG_ NEW_SIGNAL_1 : 0|12@1+ (1,0) [0|4095] "" XXX
- SG_ NEW_SIGNAL_2 : 12|12@1+ (1,0) [0|4095] "" XXX
- SG_ Counter : 48|4@1+ (1,0) [0|15] "" XXX
- SG_ Checksum : 63|8@0+ (1,0) [0|255] "" XXX
-
 BO_ 870 EMS_366: 8 EMS
  SG_ TQI_1 : 0|8@1+ (0.390625,0) [0|99.6094] "%" MDPS
  SG_ N : 8|16@1+ (0.25,0.0) [0.0|16383.75] "rpm" MDPS
