@@ -179,7 +179,7 @@ if __name__ == "__main__":
 	#   	#time.sleep(0.1)
 	#   	#print('send data')
 
-  steerAngle = 0 if current_strAng > STEER_ANG_MAX else STEER_ANG_MAX
+  steerAngle = -250 if current_strAng > 250 else STEER_ANG_MAX
 
 
       apply_steer_ang_req = clip(steerAngle, -1*(STEER_ANG_MAX), STEER_ANG_MAX)
