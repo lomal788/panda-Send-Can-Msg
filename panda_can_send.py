@@ -183,8 +183,8 @@ if __name__ == "__main__":
 
 
       apply_steer_ang_req = clip(steerAngle, -1*(STEER_ANG_MAX), STEER_ANG_MAX)
-      if(frame % 20000) == 0:
-        apply_steer_ang_req = 0.1
+      # if(frame % 20000) == 0:
+      #   apply_steer_ang_req = 0.1
       # SPAS limit angle rate for safety
       if abs(apply_steer_ang - apply_steer_ang_req) > STEER_ANG_MAX_RATE:
         if apply_steer_ang_req > apply_steer_ang:
