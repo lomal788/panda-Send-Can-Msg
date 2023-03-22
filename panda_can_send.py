@@ -114,6 +114,7 @@ if __name__ == "__main__":
   spas_enabled = False
   current_strAng = 0
   apply_steer_ang = 0
+  mdps11_stat = 0
   #p = 0
   
   try:
