@@ -70,6 +70,27 @@ STEER_ANG_MAX_RATE = 1.5    # SPAS Degrees per ms
   # p.can_send(0x1268, b"\x00\x00\x00\x00\x00\x00\x00\x00", 0)
   # print(msg)
 
+def clip(x, lo, hi):
+  return max(lo, min(hi, x))
+
+def interp(x, xp, fp):
+  N = len(xp)
+
+  def get_interp(xv):
+    hi = 0
+    while hi < N and xv > xp[hi]:
+      hi += 1
+    low = hi - 1
+    return fp[-1] if hi == N and xv > xp[low] else (
+      fp[0] if hi == 0 else
+      (xv - xp[low]) * (fp[hi] - fp[low]) / (xp[hi] - xp[low]) + fp[low])
+
+  return [get_interp(v) for v in x] if hasattr(x, '__iter__') else get_interp(x)
+
+def mean(x):
+  return sum(x) / len(x)
+
+
 def create_spas11(en_spas, apply_steer, spas_mode_sequence, frame):
     values = {
       "CF_Spas_Stat": en_spas,
@@ -109,9 +130,9 @@ if __name__ == "__main__":
   last_apply_angle = 0.0
   en_spas = 2
   mdps11_stat_last = 0
-  spas_active = True
+  spas_active = False
   mdps_bus = 1
-  spas_enabled = False
+  spas_enabled = True
   current_strAng = 0
   apply_steer_ang = 0
   mdps11_stat = 0
@@ -158,8 +179,10 @@ if __name__ == "__main__":
 	#   	#time.sleep(0.1)
 	#   	#print('send data')
 
+  steerAngle = 0 if current_strAng > STEER_ANG_MAX else STEER_ANG_MAX
 
-      # apply_steer_ang_req = clip(actuators.steerAngle, -1*(STEER_ANG_MAX), STEER_ANG_MAX)
+
+      apply_steer_ang_req = clip(steerAngle, -1*(STEER_ANG_MAX), STEER_ANG_MAX)
       if(frame % 20000) == 0:
         apply_steer_ang_req = 0.1
       # SPAS limit angle rate for safety
@@ -230,10 +253,10 @@ if __name__ == "__main__":
             en_spas = 2    
 
           if not spas_active:
-            apply_angle = mdps11_strang
+            apply_steer_ang = mdps11_strang
 
           mdps11_stat_last = mdps11_stat
-          p.can_send(0x912,create_spas11((frame // 2), en_spas, apply_angle, mdps_bus), 0)
+          p.can_send(0x912,create_spas11((frame // 2), en_spas, apply_steer_ang, mdps_bus), 0)
         
       # SPAS12 20Hz
       if (frame % 5) == 0:
@@ -253,10 +276,10 @@ if __name__ == "__main__":
         elif(address == 0x897):
           mdpsMsg = LEDDAR_DBC.decode_message(addr, dat)
           current_strAng = mdpsMsg["CR_Mdps_StrAng"]
-          apply_steer_ang = mdpsMsg["CR_Mdps_StrAng"]
+          mdps11_strang = mdpsMsg["CR_Mdps_StrAng"]
           mdps11_stat = mdpsMsg["CF_Mdps_Stat"]
-          if(frame % 20000) == 0:
-            apply_angle = 0.1
+          # if(frame % 20000) == 0:
+            # apply_angle = 0.1
         
       # print(addr, _, dat, bus)
     
