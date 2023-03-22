@@ -267,17 +267,22 @@ if __name__ == "__main__":
       
       data = panda.can_recv()
       for addr, _, dat, bus in data:
-        if (address == 0x912):
+        if (address == 0x912): # SPAS11
           smdps11Msg = LEDDAR_DBC.decode_message(addr, dat)
           print(smdps11Msg)
-        elif(address == 0x357):
+        elif(address == 0x357): # VSM2
           smdps12Msg = LEDDAR_DBC.decode_message(addr, dat)
           print('s_mdps11'+smdps12Msg)
-        elif(address == 0x897):
+        elif(address == 0x897): # MDPS11
           mdpsMsg = LEDDAR_DBC.decode_message(addr, dat)
           current_strAng = mdpsMsg["CR_Mdps_StrAng"]
           mdps11_strang = mdpsMsg["CR_Mdps_StrAng"]
           mdps11_stat = mdpsMsg["CF_Mdps_Stat"]
+        elif(address == 0x914): # S_MDPS11
+          s_mdps11Msg = LEDDAR_DBC.decode_message(addr, dat)
+          current_strAng = s_mdps11Msg["CR_Mdps_StrAng"]
+          mdps11_strang = s_mdps11Msg["CR_Mdps_StrAng"]
+          mdps11_stat = s_mdps11Msg["CF_Mdps_Stat"]
           # if(frame % 20000) == 0:
             # apply_angle = 0.1
         
