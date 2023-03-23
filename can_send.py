@@ -70,6 +70,27 @@ STEER_ANG_MAX_RATE = 1.5    # SPAS Degrees per ms
   # p.can_send(0x1268, b"\x00\x00\x00\x00\x00\x00\x00\x00", 0)
   # print(msg)
 
+def clip(x, lo, hi):
+  return max(lo, min(hi, x))
+
+def interp(x, xp, fp):
+  N = len(xp)
+
+  def get_interp(xv):
+    hi = 0
+    while hi < N and xv > xp[hi]:
+      hi += 1
+    low = hi - 1
+    return fp[-1] if hi == N and xv > xp[low] else (
+      fp[0] if hi == 0 else
+      (xv - xp[low]) * (fp[hi] - fp[low]) / (xp[hi] - xp[low]) + fp[low])
+
+  return [get_interp(v) for v in x] if hasattr(x, '__iter__') else get_interp(x)
+
+def mean(x):
+  return sum(x) / len(x)
+
+
 def create_spas11(en_spas, apply_steer, spas_mode_sequence, frame):
     values = {
       "CF_Spas_Stat": en_spas,
@@ -109,10 +130,14 @@ if __name__ == "__main__":
   last_apply_angle = 0.0
   en_spas = 2
   mdps11_stat_last = 0
-  spas_active = True
+  spas_active = False
   mdps_bus = 1
-  spas_enabled = False
+  spas_enabled = True
   current_strAng = 0
+  apply_steer_ang = 0
+  mdps11_stat = 0
+  mdps11_strang = 0
+  #p = 0
   
   try:
     print("Trying to connect to Panda over USB...")
@@ -139,6 +164,7 @@ if __name__ == "__main__":
   frame = 0
   try:
     while True:
+
 	#   	#EMS14 엔진 점검등 켜기
 	#   	#p.can_send(0x545, b'\x02\x00\x00\x00\x00\x00\x00\x00', 0)
     
@@ -154,10 +180,12 @@ if __name__ == "__main__":
 	#   	#time.sleep(0.1)
 	#   	#print('send data')
 
+  steerAngle = -250 if current_strAng > 250 else STEER_ANG_MAX
 
-      # apply_steer_ang_req = clip(actuators.steerAngle, -1*(STEER_ANG_MAX), STEER_ANG_MAX)
-      if(frame % 20000) == 0:
-        apply_steer_ang_req = 0.1
+
+      apply_steer_ang_req = clip(steerAngle, -1*(STEER_ANG_MAX), STEER_ANG_MAX)
+      # if(frame % 20000) == 0:
+      #   apply_steer_ang_req = 0.1
       # SPAS limit angle rate for safety
       if abs(apply_steer_ang - apply_steer_ang_req) > STEER_ANG_MAX_RATE:
         if apply_steer_ang_req > apply_steer_ang:
@@ -178,58 +206,58 @@ if __name__ == "__main__":
 # State 7 : Cancel
 # State 8 : Failed to get ready to Assist (Steer)
 # ---------------------------------------------------
-    if spas_enabled:
-      if mdps_bus:
-        spas_active_stat = False
-        if spas_active: # Spoof Speed on mdps11_stat 4 and 5 JPR
-          if mdps11_stat == 4 or mdps11_stat == 5 or mdps11_stat == 3: 
-            spas_active_stat = True
-          else:
-            spas_active_stat = False
-        p.can_send(create_ems_366(spas_active_stat))
-      if (frame % 2) == 0:
-        if mdps11_stat == 7:
-          en_spas = 7
+      if spas_enabled:
+        if mdps_bus:
+          spas_active_stat = False
+          if spas_active: # Spoof Speed on mdps11_stat 4 and 5 JPR
+            if mdps11_stat == 4 or mdps11_stat == 5 or mdps11_stat == 3: 
+              spas_active_stat = True
+            else:
+              spas_active_stat = False
+          p.can_send(0x870, create_ems_366(spas_active_stat), 0)
+        if (frame % 2) == 0:
+          if mdps11_stat == 7:
+            en_spas = 7
 
-        if mdps11_stat == 7 and mdps11_stat_last == 7:
-          en_spas = 3
-          if mdps11_stat == 3:
-            en_spas = 2
-            if mdps11_stat == 2:
-              en_spas = 3
-              if mdps11_stat == 3:
-                en_spas = 4
-                if mdps11_stat == 3 and en_spas == 4:
-                  en_spas = 3  
+          if mdps11_stat == 7 and mdps11_stat_last == 7:
+            en_spas = 3
+            if mdps11_stat == 3:
+              en_spas = 2
+              if mdps11_stat == 2:
+                en_spas = 3
+                if mdps11_stat == 3:
+                  en_spas = 4
+                  if mdps11_stat == 3 and en_spas == 4:
+                    en_spas = 3  
 
-        if mdps11_stat == 3 and spas_active:
-          en_spas = 4
-          if mdps11_stat == 4:
+          if mdps11_stat == 3 and spas_active:
+            en_spas = 4
+            if mdps11_stat == 4:
+              en_spas = 5
+            
+          if mdps11_stat == 2 and spas_active:
+            en_spas = 3 # Switch to State 3, and get Ready to Assist(Steer). JPR
+
+          if mdps11_stat == 3 and spas_active:
+            en_spas = 4
+            
+          if mdps11_stat == 4 and spas_active:
             en_spas = 5
-          
-        if mdps11_stat == 2 and spas_active:
-          en_spas = 3 # Switch to State 3, and get Ready to Assist(Steer). JPR
 
-        if mdps11_stat == 3 and spas_active:
-          en_spas = 4
-          
-        if mdps11_stat == 4 and spas_active:
-          en_spas = 5
+          if mdps11_stat == 5 and not spas_active:
+            en_spas = 3
 
-        if mdps11_stat == 5 and not spas_active:
-          en_spas = 3
+          if mdps11_stat == 6: # Failed to Assist and Steer, Set state back to 2 for a new request. JPR
+            en_spas = 2    
 
-        if mdps11_stat == 6: # Failed to Assist and Steer, Set state back to 2 for a new request. JPR
-          en_spas = 2    
+          if mdps11_stat == 8: #MDPS ECU Fails to get into state 3 and ready for state 5. JPR
+            en_spas = 2    
 
-        if mdps11_stat == 8: #MDPS ECU Fails to get into state 3 and ready for state 5. JPR
-          en_spas = 2    
+          if not spas_active:
+            apply_steer_ang = mdps11_strang
 
-        if not spas_active:
-          apply_angle = mdps11_strang
-
-        mdps11_stat_last = mdps11_stat
-        p.can_send(0x912,create_spas11((frame // 2), en_spas, apply_angle, mdps_bus), 0)
+          mdps11_stat_last = mdps11_stat
+          p.can_send(0x912,create_spas11((frame // 2), en_spas, apply_steer_ang, mdps_bus), 0)
         
       # SPAS12 20Hz
       if (frame % 5) == 0:
@@ -238,25 +266,30 @@ if __name__ == "__main__":
         print("MDPS SPAS State: ", mdps11_stat) # SPAS STATE DEBUG
         print("OP SPAS State: ", en_spas) # OpenPilot Ask MDPS to switch to state.
       
-    data = panda.can_recv()
-    for addr, _, dat, bus in data:
-      if (address == 0x912):
-        smdps11Msg = LEDDAR_DBC.decode_message(addr, dat)
-        print(smdps11Msg)
-      elif(address == 0x357):
-        smdps12Msg = LEDDAR_DBC.decode_message(addr, dat)
-        print('s_mdps11'+smdps12Msg)
-      elif(address == 0x897):
-        mdpsMsg = LEDDAR_DBC.decode_message(addr, dat)
-        current_strAng = mdpsMsg["CR_Mdps_StrAng"]
-        apply_steer_ang = mdpsMsg["CR_Mdps_StrAng"]
-        mdps11_stat = mdpsMsg["CF_Mdps_Stat"]
-        if(frame % 20000) == 0:
-          apply_angle = 0.1
+      data = p.can_recv()
+      for addr, _, dat, bus in data:
+        if (address == 0x912): # SPAS11
+          smdps11Msg = LEDDAR_DBC.decode_message(addr, dat)
+          print(smdps11Msg)
+        elif(address == 0x357): # VSM2
+          smdps12Msg = LEDDAR_DBC.decode_message(addr, dat)
+          print('s_mdps11'+smdps12Msg)
+        elif(address == 0x897): # MDPS11
+          mdpsMsg = LEDDAR_DBC.decode_message(addr, dat)
+          current_strAng = mdpsMsg["CR_Mdps_StrAng"]
+          mdps11_strang = mdpsMsg["CR_Mdps_StrAng"]
+          mdps11_stat = mdpsMsg["CF_Mdps_Stat"]
+        elif(address == 0x914): # S_MDPS11
+          s_mdps11Msg = LEDDAR_DBC.decode_message(addr, dat)
+          current_strAng = s_mdps11Msg["CR_Mdps_StrAng"]
+          mdps11_strang = s_mdps11Msg["CR_Mdps_StrAng"]
+          mdps11_stat = s_mdps11Msg["CF_Mdps_Stat"]
+          # if(frame % 20000) == 0:
+            # apply_angle = 0.1
         
       # print(addr, _, dat, bus)
     
-    frame = frame+1
+      frame = frame+1
 	  	# get can msg
 	    # data = panda.can_recv()
 	    # for addr, _, dat, bus in data:
