@@ -15,9 +15,8 @@ if __name__ == "__main__":
 
 	#Panda Safety off
 	p.set_safety_mode(Panda.SAFETY_ALLOUTPUT)
-
-	#p.set_power_save(False)
-
+	p.set_power_save(False)
+	
 	while True:
 		try:
 		  p.send_heartbeat()
@@ -26,12 +25,12 @@ if __name__ == "__main__":
 		  break
 
 	#SEt Can speed
-	#p.set_can_speed_kbps(0, 125)
+	p.set_can_speed_kbps(0, 125)
 	#cnt = 0
 	try:
 	  while True:
 	  	#EMS14 엔진 점검등 켜기
-	  	#p.can_send(0x545, b'\x02\x00\x00\x00\x00\x00\x00\x00', 0)
+	  	p.can_send(0x545, b'\x02\x00\x00\x00\x00\x00\x00\x00', 0)
 
 	  	#Engine Rpm Set to 1k
 	  	#p.can_send(0x316, b'\x45\x1f\xe6\x0f\x1f\x1a\x00\x7f', 0)
@@ -41,7 +40,7 @@ if __name__ == "__main__":
 
 	  	
 	  	#sleep 0.1s
-	  	#time.sleep(0.1)
+	  	time.sleep(0.1)
 	  	#print('send data')
 	  	
 	  	#cnt = cnt+1
