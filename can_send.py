@@ -6,7 +6,6 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from os.path import dirname, abspath, join
 import cantools
 
-max = 500 # increase this if u need more time to start car engine
 dbc_name ='toyota_nodsu_hybrid_pt_generated' # put you correct odbc here (search in values.py)
 
 # DBC files: car and leddar
@@ -18,7 +17,6 @@ LEDDAR_DBC = cantools.database.load_file(leddar)
 # SPAS steering limits
 STEER_ANG_MAX = 360          # SPAS Max Angle
 STEER_ANG_MAX_RATE = 1.5    # SPAS Degrees per ms
-
 
 # LEDDAR_DBC.decode_message(address, dat)
 # values = {
@@ -121,24 +119,26 @@ def create_ems_366(enabled):
   if enabled:
     values["VS"] = 1
   return LEDDAR_DBC.encode_message(870,values)
-    
-
 
 if __name__ == "__main__":
 
     # main()
   last_apply_angle = 0.0
-  en_spas = 2
+  en_spas = 3
   mdps11_stat_last = 0
   spas_active = False
-  mdps_bus = 1
+  mdps_bus = 2
   spas_enabled = True
-  current_strAng = 0
   apply_steer_ang = 0
   mdps11_stat = 0
   mdps11_strang = 0
-  #p = 0
-  
+  cruz_on = 0
+  cruz_on_last = 0
+
+  #SPAS TYPE2
+  en_cnt = 0
+  spas_enabled2 = True
+
   try:
     print("Trying to connect to Panda over USB...")
     p = Panda()
@@ -149,8 +149,7 @@ if __name__ == "__main__":
 
 	#Panda Safety off
   p.set_safety_mode(Panda.SAFETY_ALLOUTPUT)
-  
-  p.set_power_save(False)
+  #p.set_power_save(False)
 
 	# while True:
 	# 	try:
@@ -160,32 +159,40 @@ if __name__ == "__main__":
 	# 	  break
 
 	#SEt Can speed
-  p.set_can_speed_kbps(0, 125)
+  print("connected")
+  print("%s: %s" % (p.get_serial()[0], p.get_version()))
+  #p.set_can_speed_kbps(0, 125)
   frame = 0
   try:
     while True:
+      if cruz_on == 1 or cruz_on_last == 1:
+        spas_active = True
+        cruz_on_last = cruz_on
+      else:
+        spas_active = False
+        cruz_on_last = cruz_on
 
 	#   	#EMS14 엔진 점검등 켜기
 	#   	#p.can_send(0x545, b'\x02\x00\x00\x00\x00\x00\x00\x00', 0)
-    
 
 	#   	#Engine Rpm Set to 1k
 	#   	#p.can_send(0x316, b'\x45\x1f\xe6\x0f\x1f\x1a\x00\x7f', 0)
 
 	#   	#Engine Rpm set to over the limit
 	#   	#p.can_send(0x316, b'\x00\x00\xff\x0f\x00\x00\xff\x00', 0)
-
 	  	
 	#   	#sleep 0.1s
 	#   	#time.sleep(0.1)
 	#   	#print('send data')
 
-  steerAngle = -250 if current_strAng > 250 else STEER_ANG_MAX
-
+      steerAngle = -50 if mdps11_strang > 50 else 55
+      #steerAngle = -10
+      
+      #print(steerAngle, -1*(STEER_ANG_MAX), STEER_ANG_MAX)
 
       apply_steer_ang_req = clip(steerAngle, -1*(STEER_ANG_MAX), STEER_ANG_MAX)
-      # if(frame % 20000) == 0:
-      #   apply_steer_ang_req = 0.1
+      #apply_steer_ang_req = -10
+
       # SPAS limit angle rate for safety
       if abs(apply_steer_ang - apply_steer_ang_req) > STEER_ANG_MAX_RATE:
         if apply_steer_ang_req > apply_steer_ang:
@@ -207,6 +214,7 @@ if __name__ == "__main__":
 # State 8 : Failed to get ready to Assist (Steer)
 # ---------------------------------------------------
       if spas_enabled:
+        #Spoof Speed
         if mdps_bus:
           spas_active_stat = False
           if spas_active: # Spoof Speed on mdps11_stat 4 and 5 JPR
@@ -215,6 +223,7 @@ if __name__ == "__main__":
             else:
               spas_active_stat = False
           p.can_send(0x870, create_ems_366(spas_active_stat), 0)
+
         if (frame % 2) == 0:
           if mdps11_stat == 7:
             en_spas = 7
@@ -257,35 +266,75 @@ if __name__ == "__main__":
             apply_steer_ang = mdps11_strang
 
           mdps11_stat_last = mdps11_stat
-          p.can_send(0x912,create_spas11((frame // 2), en_spas, apply_steer_ang, mdps_bus), 0)
-        
+          p.can_send(0x390,create_spas11(en_spas, apply_steer_ang, mdps_bus,(frame // 2)),0)
+
+
+
+      if (frame % 2) == 0 and spas_enabled2:
+        if mdps11_stat == 7 and not mdps11_stat_last == 7:
+          en_spas == 7
+          en_cnt = 0
+
+        if en_spas == 7 and en_cnt >= 8:
+          en_spas = 3
+          en_cnt = 0
+
+        if en_cnt < 8 and spas_active:
+          en_spas = 4
+        elif en_cnt >= 8 and spas_active:
+          en_spas = 5
+
+        if not spas_active:
+          apply_steer_ang = mdps11_strang
+          en_spas = 3
+          en_cnt = 0
+
+        mdps11_stat_last = mdps11_stat
+        en_cnt += 1
+        p.can_send(0x390,create_spas11(en_spas, apply_steer_ang, mdps_bus,(frame // 2)),0)
+        #can_sends.append(create_spas11(self.packer, (frame // 2), self.en_spas, self.apply_steer_ang, self.checksum))
+
+
+
+
       # SPAS12 20Hz
       if (frame % 5) == 0:
         #can_sends.append(create_spas12(mdps_bus))
-        p.can_send(0x1268, b"\x00\x00\x00\x00\x00\x00\x00\x00", 0)
+        p.can_send(0x4f4, b"\x00\x00\x00\x00\x00\x00\x00\x00", 0)
         print("MDPS SPAS State: ", mdps11_stat) # SPAS STATE DEBUG
         print("OP SPAS State: ", en_spas) # OpenPilot Ask MDPS to switch to state.
       
       data = p.can_recv()
       for addr, _, dat, bus in data:
-        if (address == 0x912): # SPAS11
+        if (addr == 912): # SPAS11
           smdps11Msg = LEDDAR_DBC.decode_message(addr, dat)
           print(smdps11Msg)
-        elif(address == 0x357): # VSM2
+        elif(addr == 357): # VSM2
           smdps12Msg = LEDDAR_DBC.decode_message(addr, dat)
-          print('s_mdps11'+smdps12Msg)
-        elif(address == 0x897): # MDPS11
+        elif(addr == 897): # MDPS11
           mdpsMsg = LEDDAR_DBC.decode_message(addr, dat)
-          current_strAng = mdpsMsg["CR_Mdps_StrAng"]
           mdps11_strang = mdpsMsg["CR_Mdps_StrAng"]
           mdps11_stat = mdpsMsg["CF_Mdps_Stat"]
-        elif(address == 0x914): # S_MDPS11
+          print('MDPS11')
+          print(mdpsMsg)
+        elif(addr == 1264): # CLU11
+          cluMsg = LEDDAR_DBC.decode_message(addr, dat)
+          aa = cluMsg["CF_Clu_CruiseSwState"]
+          cruz_on = cluMsg["CF_Clu_CruiseSwMain"]
+          cc = cluMsg["CF_Clu_Odometer"]
+          #mdps11_strang = mdpsMsg["CR_Mdps_StrAng"]
+          #mdps11_stat = mdpsMsg["CF_Mdps_Stat"]
+          #print('CLU11')
+          #print(aa)
+          #print(bb)
+          #print(cc)
+        elif(addr == 914): # S_MDPS11
           s_mdps11Msg = LEDDAR_DBC.decode_message(addr, dat)
-          current_strAng = s_mdps11Msg["CR_Mdps_StrAng"]
           mdps11_strang = s_mdps11Msg["CR_Mdps_StrAng"]
           mdps11_stat = s_mdps11Msg["CF_Mdps_Stat"]
-          # if(frame % 20000) == 0:
-            # apply_angle = 0.1
+          if(frame % 2) == 0:
+            print('S_MDPS11')
+            print(s_mdps11Msg)
         
       # print(addr, _, dat, bus)
     
