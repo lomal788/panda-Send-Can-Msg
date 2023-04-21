@@ -5,7 +5,8 @@ For greatest compatibility this script doesn't depend bob-built-in modules -
 except for the USB CAN interface (Panda, ) and it can be run on PC or Comma EON. 
 Keyboard input (w,s, q keys) in game mode - supported even over SSH
 """
-from panda import Panda  # install https://github.com/commaai/panda
+from panda import Panda
+# install https://github.com/commaai/panda
 
 import binascii
 import argparse
@@ -25,7 +26,7 @@ import cantools
 # DBC files: car and leddar
 base_path = dirname(abspath(__file__))
 parent_path = abspath(join(base_path, os.pardir))
-leddar = join(parent_path,'car/kia_forte_koup_2013.dbc')
+leddar = join(parent_path,'openpilot/kia_forte_koup_2013.dbc')
 LEDDAR_DBC = cantools.database.load_file(leddar)
 
 
@@ -42,7 +43,8 @@ def heartbeat_thread(p):
 MSG_STEERING_COMMAND_FRAME_ID = 0x22e
 MSG_STEERING_STATUS_FRAME_ID = 0x22f
 motor_bus_speed = 500  #StepperServoCAN baudrate 500kbps
-MOTOR_MSG_TS = 0.008 #10Hz
+#MOTOR_MSG_TS = 0.008 #10Hz
+MOTOR_MSG_TS = 0.0008 #100Hz
 MAX_TORQUE = 9
 MAX_ANGLE = 4095
 
@@ -69,13 +71,15 @@ actions = {
 
 
 def create_spas11(en_spas, apply_steer, spas_mode_sequence, frame):
+    # print(frame % 0xff)
     values = {
       "CF_Spas_Stat": en_spas,
-      "CF_Spas_TestMode": 0, # Maybe if set to 1 will ignore VS... needs testing.
+      "CF_Spas_TestMode": 1, # Maybe if set to 1 will ignore VS... needs testing.
       "CR_Spas_StrAngCmd": apply_steer,
       "CF_Spas_BeepAlarm": 0,
       "CF_Spas_Mode_Seq": spas_mode_sequence, # 2 if LEGACY_SAFETY_MODE_CAR else 1,
-      "CF_Spas_AliveCnt": frame % 0x200, 
+      # "CF_Spas_AliveCnt": 255 if frame % 0x200 > 255 else frame % 0x200, 
+      "CF_Spas_AliveCnt": frame % 0xff, 
       "CF_Spas_Chksum": 0,
       "CF_Spas_PasVol": 0,
     }
@@ -139,13 +143,21 @@ def CAN_tx_thread(p:Panda, bus):
   global _torque
   global _angle
   global _mode
+  global mdps11_stat
+  global mdps11_strang
+  global _en_spas
+  global apply_steer_ang
 
   frame = 0 # 10hz
   en_spas = 1
+  _en_spas = 1
   mdps11_stat_last = 0
+  mdps11_stat = 2
+  mdps11_strang = 0
 
-  # SEND SPAS11
+  # SEND SPAS12
   p.can_send(0x4f4, b"\x00\x00\x00\x00\x00\x00\x00\x00", 0)
+  p.can_send(0x436, b"\x00\x00\x00\x00", 0)
 
 #   dat = steering_msg_cmd_data(frame, _mode, _torque, _angle)
 #   p.can_send(MSG_STEERING_COMMAND_FRAME_ID, dat, bus)
@@ -193,18 +205,26 @@ def CAN_tx_thread(p:Panda, bus):
         if mdps11_stat == 8: #MDPS ECU Fails to get into state 3 and ready for state 5. JPR
             en_spas = 2
 
+        if mdps11_stat == 1: #MDPS ECU Fails to get into state 3 and ready for state 5. JPR
+            en_spas = 2
+
         apply_steer_ang = _angle
         if not spas_active:
             apply_steer_ang = mdps11_strang
 
         mdps11_stat_last = mdps11_stat
-        p.can_send(0x390,create_spas11(en_spas, apply_steer_ang, 2,(frame // 2)),0)
+        _en_spas = en_spas
+        if apply_steer_ang != 32767:
+          p.can_send(0x390,create_spas11(en_spas, apply_steer_ang, 2,(frame // 2)),0)
 
     # SPAS12 20HZ
-    if (frame % 2) == 0:
+    if (frame % 5) == 0:
       p.can_send(0x4f4, b"\x00\x00\x00\x00\x00\x00\x00\x00", 0)
-    #   print("MDPS SPAS State: ", mdps11_stat) # SPAS STATE DEBUG
-    #   print("OP SPAS State: ", en_spas) # OpenPilot Ask MDPS to switch to state.
+      # p.can_send(0x436, b"\x00\x00\x00\x00", 0)
+      #frame
+      # print("MDPS degree: ", apply_steer_ang) # MDPS degree
+      # print("MDPS SPAS State: ", mdps11_stat) # SPAS STATE DEBUG
+      # print("OP SPAS State: ", en_spas) # OpenPilot Ask MDPS to switch to state.
 
     frame += 1
     # dat = steering_msg_cmd_data(frame % 0xF, _mode, _torque, _angle)
@@ -212,10 +232,11 @@ def CAN_tx_thread(p:Panda, bus):
     
 
 def CAN_rx_thread(p, bus):
+  global mdps11_strang
+  global mdps11_stat
+
   t_status_msg_prev =0
   print("Starting CAN RX thread...")
-  global mdps11_stat
-  global mdps11_strang
   p.can_clear(bus)     #flush the buffers
   while True:
     time.sleep(MOTOR_MSG_TS/10) #read fast enough so the CAN interface buffer is cleared each loop
@@ -281,10 +302,28 @@ def print_cmd_state():
   global _torque
   global _angle
   global _mode
+  global mdps11_stat
+  global _en_spas
+  global spas_active
+  global mdps11_strang
+  global apply_steer_ang
+
   if _mode == modes['TORQUE_CONTROL']:
     print(f"Torque: {_torque:3.2f}")
   elif _mode == modes['ANGLE_CONTROL']:
     print(f"Angle:{_angle:4.2f}, FeedForward torque: {_torque:3.2f}")
+    spas_active = True
+  else:
+    spas_active = False
+  print(spas_active)
+  print(apply_steer_ang)
+  print(mdps11_stat)
+  print(_en_spas)
+
+  # print("MDPS degree: ", apply_steer_ang) # MDPS degree
+  # print("MDPS SPAS State: ", mdps11_stat) # SPAS STATE DEBUG
+  # print("OP SPAS State: ", en_spas) # OpenPilot Ask MDPS to switch to state.
+
 
 def motor_tester(bus):
   panda = Panda()
@@ -312,6 +351,7 @@ def motor_tester(bus):
   _torque = 0.0
   _angle = 0.0
   spas_active = False
+  
 
   key_queue = queue.Queue(maxsize=2) #key buffer
   tx_t = threading.Thread(target=CAN_tx_thread, args=(panda, bus), daemon=True)
