@@ -15,6 +15,7 @@ import _thread
 import queue
 import threading
 import subprocess
+import crcmod
 
 import os
 import sys
@@ -28,6 +29,8 @@ base_path = dirname(abspath(__file__))
 parent_path = abspath(join(base_path, os.pardir))
 leddar = join(parent_path,'openpilot/kia_forte_koup_2013.dbc')
 LEDDAR_DBC = cantools.database.load_file(leddar)
+
+hyundai_checksum = crcmod.mkCrcFun(0x11D, initCrc=0xFD, rev=False, xorOut=0xdf)
 
 
 def heartbeat_thread(p):
@@ -85,10 +88,12 @@ def create_spas11(en_spas, apply_steer, spas_mode_sequence, frame):
     }
     dat = LEDDAR_DBC.encode_message(912,values)
     # if car_fingerprint in CHECKSUM["crc8"]:
-    #   dat = dat[:6]
-    #   values["CF_Spas_Chksum"] = hyundai_checksum(dat)
+    # dat = dat[:6]
+    # values["CF_Spas_Chksum"] = hyundai_checksum(dat)
     # else:
-    values["CF_Spas_Chksum"] = sum(dat[:6]) % 256
+    # values["CF_Spas_Chksum"] = sum(dat[:6]) % 256
+    # checksum = (sum(dat[:6]) + dat[7]) % 256
+
     return LEDDAR_DBC.encode_message(912,values)
 
 
