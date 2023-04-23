@@ -16,6 +16,7 @@ import queue
 import threading
 import subprocess
 import crcmod
+import csv
 
 import os
 import sys
@@ -77,19 +78,20 @@ def create_spas11(en_spas, apply_steer, spas_mode_sequence, frame):
     # print(frame % 0xff)
     values = {
       "CF_Spas_Stat": en_spas,
-      "CF_Spas_TestMode": 1, # Maybe if set to 1 will ignore VS... needs testing.
+      "CF_Spas_TestMode": 0, # Maybe if set to 1 will ignore VS... needs testing.
       "CR_Spas_StrAngCmd": apply_steer,
       "CF_Spas_BeepAlarm": 0,
       "CF_Spas_Mode_Seq": spas_mode_sequence, # 2 if LEGACY_SAFETY_MODE_CAR else 1,
       # "CF_Spas_AliveCnt": 255 if frame % 0x200 > 255 else frame % 0x200, 
-      "CF_Spas_AliveCnt": frame % 0xff, 
+      "CF_Spas_AliveCnt": frame / 2,  #0xff
       "CF_Spas_Chksum": 0,
       "CF_Spas_PasVol": 0,
     }
+
     dat = LEDDAR_DBC.encode_message(912,values)
     # if car_fingerprint in CHECKSUM["crc8"]:
-    # dat = dat[:6]
-    # values["CF_Spas_Chksum"] = hyundai_checksum(dat)
+    dat = dat[:6]
+    values["CF_Spas_Chksum"] = hyundai_checksum(dat)
     # else:
     # values["CF_Spas_Chksum"] = sum(dat[:6]) % 256
     # checksum = (sum(dat[:6]) + dat[7]) % 256
@@ -159,6 +161,7 @@ def CAN_tx_thread(p:Panda, bus):
   mdps11_stat_last = 0
   mdps11_stat = 2
   mdps11_strang = 0
+  __type = "1"
 
   # SEND SPAS12
   p.can_send(0x4f4, b"\x00\x00\x00\x00\x00\x00\x00\x00", 0)
@@ -210,22 +213,47 @@ def CAN_tx_thread(p:Panda, bus):
         if mdps11_stat == 8: #MDPS ECU Fails to get into state 3 and ready for state 5. JPR
             en_spas = 2
 
-        if mdps11_stat == 1: #MDPS ECU Fails to get into state 3 and ready for state 5. JPR
-            en_spas = 2
+        # if mdps11_stat == 1: #MDPS ECU Fails to get into state 3 and ready for state 5. JPR
+        #     en_spas = 2
 
         apply_steer_ang = _angle
         if not spas_active:
             apply_steer_ang = mdps11_strang
 
+
+        if __type == "2":
+            if mdps11_stat == 7 and not mdps11_stat_last == 7:
+                en_spas == 7
+                en_cnt = 0
+            if en_spas == 7 and en_cnt >= 8:
+                en_spas = 3
+                en_cnt = 0
+
+            if en_cnt < 8 and spas_active:
+                en_spas = 4
+            elif en_cnt >= 8 and spas_active:
+                en_spas = 5
+        
+            if not spas_active:
+                apply_steer_ang = mdps11_strang
+                en_spas = 3
+                en_cnt = 0
+
+            en_cnt += 1
+
         mdps11_stat_last = mdps11_stat
         _en_spas = en_spas
+
         if apply_steer_ang != 32767:
-          p.can_send(0x390,create_spas11(en_spas, apply_steer_ang, 2,(frame // 2)),0)
+          p.can_send(0x390,create_spas11(en_spas, apply_steer_ang, 2,frame % 0x200),0)
 
     # SPAS12 20HZ
     if (frame % 5) == 0:
+      #SPAS12
       p.can_send(0x4f4, b"\x00\x00\x00\x00\x00\x00\x00\x00", 0)
+      #PAS11
       # p.can_send(0x436, b"\x00\x00\x00\x00", 0)
+
       #frame
       # print("MDPS degree: ", apply_steer_ang) # MDPS degree
       # print("MDPS SPAS State: ", mdps11_stat) # SPAS STATE DEBUG
@@ -234,11 +262,20 @@ def CAN_tx_thread(p:Panda, bus):
     frame += 1
     # dat = steering_msg_cmd_data(frame % 0xF, _mode, _torque, _angle)
     # p.can_send(MSG_STEERING_COMMAND_FRAME_ID, dat, bus)
-    
 
 def CAN_rx_thread(p, bus):
   global mdps11_strang
   global mdps11_stat
+
+  import time
+  date_string = time.strftime("%Y-%m-%d-%H:%M")
+
+
+  outputfile = open('output' + date_string + '.csv', 'w')
+  csvwriter = csv.writer(outputfile)
+  # Write Header
+  csvwriter.writerow(['Bus', 'MessageID', 'Message', 'MessageLength'])
+
 
   t_status_msg_prev =0
   print("Starting CAN RX thread...")
@@ -248,6 +285,7 @@ def CAN_rx_thread(p, bus):
     t = time.time()
     can_recv = p.can_recv()
     for address, _, dat, src in can_recv:
+      csvwriter.writerow([str(src), str(address), f"0x{dat.hex()}", len(dat)])
       if src == bus and address == MSG_STEERING_STATUS_FRAME_ID:
         if t - t_status_msg_prev > 0.0001:
           hz = 1/(t - t_status_msg_prev)
@@ -259,8 +297,6 @@ def CAN_rx_thread(p, bus):
         s_mdps11Msg = LEDDAR_DBC.decode_message(address, dat)
         mdps11_strang = s_mdps11Msg["CR_Mdps_StrAng"]
         mdps11_stat = s_mdps11Msg["CF_Mdps_Stat"]
-
-
 
 
 def getChar(): #https://stackoverflow.com/a/36974338/1531161
