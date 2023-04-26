@@ -35,10 +35,6 @@ FW_DATA_ID = {
   }
 }
 
-default_config = b"\x00\x00\x00\x01\x00\x00"
-#current_config = b"\x00\x00\x00\x01\x00\x01"
-new_config = b"\x00\x00\x00\x01\x00\x01"
-
 brand = BRAND.HKG
 
 if __name__ == "__main__":
@@ -61,7 +57,8 @@ if __name__ == "__main__":
 
   print("\n[START DIAGNOSTIC SESSION]")
   session_type : SESSION_TYPE = 0x07 # type: ignore
-  uds_client.diagnostic_session_control(SESSION_TYPE.EXTENDED_DIAGNOSTIC)
+  # uds_client.diagnostic_session_control(SESSION_TYPE.EXTENDED_DIAGNOSTIC)
+  uds_client.diagnostic_session_control(session_type)
 
   print("[HARDWARE/SOFTWARE VERSION]")
   fw_version_data_id : DATA_IDENTIFIER_TYPE = 0xf100 # type: ignore
@@ -75,23 +72,72 @@ if __name__ == "__main__":
     sw_pn = uds_client.read_data_by_identifier(DATA_IDENTIFIER_TYPE.VEHICLE_MANUFACTURER_SPARE_PART_NUMBER).decode("utf-8")
     sw_ver = uds_client.read_data_by_identifier(DATA_IDENTIFIER_TYPE.VEHICLE_MANUFACTURER_ECU_SOFTWARE_VERSION_NUMBER).decode("utf-8")
     component = uds_client.read_data_by_identifier(DATA_IDENTIFIER_TYPE.SYSTEM_NAME_OR_ENGINE_TYPE).decode("utf-8")
-    # odx_file = uds_client.read_data_by_identifier(DATA_IDENTIFIER_TYPE.ODX_FILE).decode("utf-8")
-    # current_coding = uds_client.read_data_by_identifier(VOLKSWAGEN_DATA_IDENTIFIER_TYPE.CODING)  # type: ignore
-    # coding_text = current_coding.hex()
+    odx_file = uds_client.read_data_by_identifier(DATA_IDENTIFIER_TYPE.ODX_FILE).decode("utf-8")
+    current_coding = uds_client.read_data_by_identifier(0x0142)  # type: ignore
+    coding_text = current_coding.hex()
 
     print("\nEPS diagnostic data\n")
     print(f"   Part No HW:   {hw_pn}")
     print(f"   Part No SW:   {sw_pn}")
     print(f"   SW Version:   {sw_ver}")
     print(f"   Component:    {component}")
-    # print(f"   Coding:       {coding_text}")
-    # print(f"   ASAM Dataset: {odx_file}")
+    print(f"   Coding:       {current_coding}")
+    print(f" Coding H:       {coding_text}")
+    print(f"   ASAM Dataset: {odx_file}")
   except NegativeResponseError:
     print("Error fetching data from EPS")
-    quit()
+    # quit()
   except MessageTimeoutError:
     print("Timeout fetching data from EPS")
-    quit()
+    # quit()
+
+  try:
+    print("")
+    print("read data by id: boot software id ...")
+    data = uds_client.read_data_by_identifier(DATA_IDENTIFIER_TYPE.BOOT_SOFTWARE_IDENTIFICATION)
+    print(data.decode('utf-8'))
+  except NegativeResponseError as e:
+    print(e)
+
+  try:
+    print("")
+    print("read data by id: application software id ...")
+    data = uds_client.read_data_by_identifier(DATA_IDENTIFIER_TYPE.APPLICATION_SOFTWARE_IDENTIFICATION)
+    print(data.decode('utf-8'))
+  except NegativeResponseError as e:
+    print(e)
+
+  try:
+    print("")
+    print("read data by id: application data id ...")
+    data = uds_client.read_data_by_identifier(DATA_IDENTIFIER_TYPE.APPLICATION_DATA_IDENTIFICATION)
+    print(data.decode('utf-8'))
+  except NegativeResponseError as e:
+    print(e)
+
+  try:
+    print("")
+    print("read data by id: boot software fingerprint ...")
+    data = uds_client.read_data_by_identifier(DATA_IDENTIFIER_TYPE.BOOT_SOFTWARE_FINGERPRINT)
+    print(data.decode('utf-8'))
+  except NegativeResponseError as e:
+    print(e)
+
+  try:
+    print("")
+    print("read data by id: application software fingerprint ...")
+    data = uds_client.read_data_by_identifier(DATA_IDENTIFIER_TYPE.APPLICATION_SOFTWARE_FINGERPRINT)
+    print(data.decode('utf-8'))
+  except NegativeResponseError as e:
+    print(e)
+
+  try:
+    print("")
+    print("read data by id: application data fingerprint ...")
+    data = uds_client.read_data_by_identifier(DATA_IDENTIFIER_TYPE.APPLICATION_DATA_FINGERPRINT)
+    print(data.decode('utf-8'))
+  except NegativeResponseError as e:
+    print(e)
 
 
 
