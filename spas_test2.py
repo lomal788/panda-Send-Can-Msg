@@ -73,6 +73,16 @@ actions = {
     'HOLD': 4
 }
 
+def create_ems366():
+    values = {
+      "TQI_1": 10,
+      "N": 1000,
+      "TQI_2": 10,
+      "VS": 0,
+      "SWI_IGK": 1,
+    }
+
+    return LEDDAR_DBC.encode_message(870,values)
 
 def create_spas11(en_spas, apply_steer, spas_mode_sequence, frame):
     # print(frame % 0xff)
