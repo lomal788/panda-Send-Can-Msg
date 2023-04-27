@@ -3,7 +3,7 @@ import argparse
 import tqdm
 
 from panda.python import Panda
-from panda.python.uds import UdsClient, SESSION_TYPE, DATA_IDENTIFIER_TYPE
+from panda.python.uds import UdsClient, SESSION_TYPE, DATA_IDENTIFIER_TYPE, ACCESS_TYPE
 try:
     from panda.ccp import CcpClient, BYTE_ORDER
 except ImportError:
@@ -46,6 +46,35 @@ default_config = b"\x00\x00\x00\x01\x00\x00"
 new_config = b"\x00\x00\x00\x01\x00\x01"
 
 brand = BRAND.HKG
+
+def get_security_access_key(seed):
+  key = 0xc541a9
+  return key
+
+def extract_firmware(uds_client, start_addr, end_addr):
+  print("start extended diagnostic session ...")
+  uds_client.diagnostic_session_control(SESSION_TYPE.EXTENDED_DIAGNOSTIC)
+
+  print("request security access seed ...")
+  seed = uds_client.security_access(ACCESS_TYPE.REQUEST_SEED)
+  print(f"  seed: 0x{seed.hex()}")
+
+  print("send security access key ...")
+  key = get_security_access_key(seed)
+  print(f"  key: 0x{key.hex()}")
+  uds_client.security_access(ACCESS_TYPE.SEND_KEY, key)
+
+  print("extract firmware ...")
+  print(f"  start addr: {hex(start_addr)}")
+  print(f"  end addr:   {hex(end_addr)}")
+  fw = b""
+  chunk_size = 128
+  for addr in tqdm(range(start_addr, end_addr + 1, chunk_size)):
+    dat = uds_client.read_memory_by_address(addr, chunk_size)
+    assert len(dat) == chunk_size, f"expected {chunk_size} bytes but received {len(dat)} bytes starting at address {addr}"
+    fw += dat
+  return fw
+
 
 if __name__ == "__main__":
   parser = argparse.ArgumentParser(description='configure radar to output points (or reset to default)')
@@ -95,6 +124,14 @@ if __name__ == "__main__":
 
   addr = args.start_address
   client.set_memory_transfer_address(0, 0, addr)
+
+  #uds_client = UdsClient(panda, FW_DATA_ID[BRAND.HKG][PARTS.Eps], bus=0, timeout=1, debug=args.debug)
+  #os.chdir(os.path.dirname(os.path.realpath(__file__)))
+  # fw_slice = None
+  # fw_fn = f"./epas-firmware-{hex(FW_START_ADDR)}-{hex(FW_END_ADDR)}.bin"
+  # fw_slice = extract_firmware(uds_client, FW_START_ADDR, FW_END_ADDR)
+  # with open(fw_fn, "wb") as f:
+  #    f.write(fw_slice)
 
   print("[RECEIVING DATA]")
   with open(args.output, "wb") as f:
