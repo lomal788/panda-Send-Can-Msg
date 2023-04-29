@@ -61,9 +61,7 @@ quick_decay_factor = 0.6 #common
 #STEERING_COMMAND:STEER_MODE options
 modes = {
     'OFF': 0,
-    'TORQUE_CONTROL': 1,
-    'ANGLE_CONTROL': 2,
-    'SOFT_OFF': 3
+    'ENABLE': 1
 }
 
 actions = {
@@ -255,14 +253,15 @@ def CAN_tx_thread(p:Panda, bus):
         _en_spas = en_spas
 
         if apply_steer_ang != 32767:
-          p.can_send(0x390,create_spas11(en_spas, apply_steer_ang, 2,frame % 0x200),0)
+          p.can_send(0x390, create_spas11(en_spas, apply_steer_ang, 2,frame % 0x200), 0)
+          p.can_send(0x366, create_ems366(), 0)
 
     # SPAS12 20HZ
     if (frame % 5) == 0:
       #SPAS12
       p.can_send(0x4f4, b"\x00\x00\x00\x00\x00\x00\x00\x00", 0)
       #PAS11
-      # p.can_send(0x436, b"\x00\x00\x00\x00", 0)
+      p.can_send(0x436, b"\x00\x00\x00\x00", 0)
 
       #frame
       # print("MDPS degree: ", apply_steer_ang) # MDPS degree
@@ -358,10 +357,9 @@ def print_cmd_state():
   global spas_active
   global mdps11_strang
   global apply_steer_ang
-
-  if _mode == modes['TORQUE_CONTROL']:
-    print(f"Torque: {_torque:3.2f}")
-  elif _mode == modes['ANGLE_CONTROL']:
+  
+  
+  if _mode == modes['ENABLE']:
     print(f"Angle:{_angle:4.2f}, FeedForward torque: {_torque:3.2f}")
     spas_active = True
   else:
@@ -378,6 +376,8 @@ def print_cmd_state():
 
 def motor_tester(bus):
   panda = Panda()
+  panda.can_clear(0xFFFF)
+
   panda.set_can_speed_kbps(bus, motor_bus_speed)
   # Now set the panda from its default of SAFETY_SILENT (read only) to SAFETY_ALLOUTPUT
   print("Setting Panda to All Output mode...")
@@ -420,7 +420,7 @@ def motor_tester(bus):
       tx_t.start()
       print(f"Mode: {[name for name, val in modes.items() if val == _mode][0]}")
       time.sleep(0.1)
-      _mode = modes['TORQUE_CONTROL']
+      _mode = modes['OFF']
       print(f"Mode: {[name for name, val in modes.items() if val == _mode][0]}")
       rx_t.start()
       print("\nEnter torque value or used W/S keys to increase/decrease torque and A/D angle. Q to quit:") #show this before CAN messages spam the terminal
@@ -438,13 +438,13 @@ def motor_tester(bus):
           key_queue.put_nowait(c)
         except queue.Full:
           pass #fine
-      elif c == 'm': #mode input mode
+      elif c == 'e': #mode input mode
         _mode = (_mode + 1)%len(modes) # cycle thru modes
         print(_mode)
         print(f"Mode: {[name for name, val in modes.items() if val == _mode][0]}")
         print_cmd_state()
       elif c == 'd' or c == 'a': #angle input mode
-        if _mode == modes['ANGLE_CONTROL']:
+        if _mode == modes['ENABLE']:
           if c == 'd':
             _angle = rise_and_decay(_angle, angle_rise_factor, MAX_ANGLE)
             _torque = max(abs(_torque), 0.1) #match torque signal to angle
