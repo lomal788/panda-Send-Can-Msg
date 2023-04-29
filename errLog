@@ -1,0 +1,188 @@
+root@lomal-master:/home/lomal/Desktop/openpilot# python3 getfirmware.py --debug
+
+[START DIAGNOSTIC SESSION]
+[HARDWARE/SOFTWARE VERSION]
+ISO-TP: REQUEST - 0x7d4 0x22f191
+ISO-TP: TX - single frame - 0x7d4
+CAN-TX: 0x7d4 - 0x0322f19100000000
+CAN-RX: 0x7dc - 0x037f221100000000
+ISO-TP: RX - single frame - 0x7dc idx=0 done=True
+ISO-TP: RESPONSE - 0x7dc 0x7f2211
+Error fetching data from EPS
+
+read data by id: boot software id ...
+ISO-TP: REQUEST - 0x7d4 0x22f180
+ISO-TP: TX - single frame - 0x7d4
+CAN-TX: 0x7d4 - 0x0322f18000000000
+CAN-RX: 0x7dc - 0x037f221100000000
+ISO-TP: RX - single frame - 0x7dc idx=0 done=True
+ISO-TP: RESPONSE - 0x7dc 0x7f2211
+READ_DATA_BY_IDENTIFIER - service not supported
+
+read data by id: application software id ...
+ISO-TP: REQUEST - 0x7d4 0x22f181
+ISO-TP: TX - single frame - 0x7d4
+CAN-TX: 0x7d4 - 0x0322f18100000000
+CAN-RX: 0x7dc - 0x037f221100000000
+ISO-TP: RX - single frame - 0x7dc idx=0 done=True
+ISO-TP: RESPONSE - 0x7dc 0x7f2211
+READ_DATA_BY_IDENTIFIER - service not supported
+
+read data by id: application data id ...
+ISO-TP: REQUEST - 0x7d4 0x22f182
+ISO-TP: TX - single frame - 0x7d4
+CAN-TX: 0x7d4 - 0x0322f18200000000
+CAN-RX: 0x7dc - 0x037f221100000000
+ISO-TP: RX - single frame - 0x7dc idx=0 done=True
+ISO-TP: RESPONSE - 0x7dc 0x7f2211
+READ_DATA_BY_IDENTIFIER - service not supported
+
+read data by id: boot software fingerprint ...
+ISO-TP: REQUEST - 0x7d4 0x22f183
+ISO-TP: TX - single frame - 0x7d4
+CAN-TX: 0x7d4 - 0x0322f18300000000
+CAN-RX: 0x7dc - 0x037f221100000000
+ISO-TP: RX - single frame - 0x7dc idx=0 done=True
+ISO-TP: RESPONSE - 0x7dc 0x7f2211
+READ_DATA_BY_IDENTIFIER - service not supported
+
+read data by id: application software fingerprint ...
+ISO-TP: REQUEST - 0x7d4 0x22f184
+ISO-TP: TX - single frame - 0x7d4
+CAN-TX: 0x7d4 - 0x0322f18400000000
+CAN-RX: 0x7dc - 0x037f221100000000
+ISO-TP: RX - single frame - 0x7dc idx=0 done=True
+ISO-TP: RESPONSE - 0x7dc 0x7f2211
+READ_DATA_BY_IDENTIFIER - service not supported
+
+read data by id: application data fingerprint ...
+ISO-TP: REQUEST - 0x7d4 0x22f185
+ISO-TP: TX - single frame - 0x7d4
+CAN-TX: 0x7d4 - 0x0322f18500000000
+CAN-RX: 0x7dc - 0x037f221100000000
+ISO-TP: RX - single frame - 0x7dc idx=0 done=True
+ISO-TP: RESPONSE - 0x7dc 0x7f2211
+READ_DATA_BY_IDENTIFIER - service not supported
+[DONE]
+root@lomal-master:/home/lomal/Desktop/openpilot# 
+
+
+Exception in thread Thread-1:
+Traceback (most recent call last):
+  File "/usr/lib/python3.8/threading.py", line 932, in _bootstrap_inner
+    self.run()
+  File "/usr/lib/python3.8/threading.py", line 870, in run
+    self._target(*self._args, **self._kwargs)
+  File "spas_panda.py", line 259, in CAN_tx_thread
+    p.can_send(0x336, create_ems366(), 0)
+  File "/home/lomal/Desktop/openpilot/panda/python/__init__.py", line 783, in can_send
+    self.can_send_many([[addr, None, dat, bus]], timeout=timeout)
+  File "/home/lomal/Desktop/openpilot/panda/python/__init__.py", line 112, in wrapper
+    return fn(self, *args, **kwargs)
+  File "/home/lomal/Desktop/openpilot/panda/python/__init__.py", line 773, in can_send_many
+    bs = self._handle.bulkWrite(3, tx, timeout=timeout)
+  File "/home/lomal/Desktop/openpilot/panda/python/usb.py", line 21, in bulkWrite
+    return self._libusb_handle.bulkWrite(endpoint, data, timeout)  # type: ignore
+  File "/usr/local/lib/python3.8/dist-packages/libusb1-2.0.1-py3.8.egg/usb1/__init__.py", line 1390, in bulkWrite
+    return self._bulkTransfer(endpoint, data, sizeof(data), timeout)
+  File "/usr/local/lib/python3.8/dist-packages/libusb1-2.0.1-py3.8.egg/usb1/__init__.py", line 1359, in _bulkTransfer
+    mayRaiseUSBError(libusb1.libusb_bulk_transfer(
+  File "/usr/local/lib/python3.8/dist-packages/libusb1-2.0.1-py3.8.egg/usb1/__init__.py", line 128, in mayRaiseUSBError
+    __raiseUSBError(value)
+  File "/usr/local/lib/python3.8/dist-packages/libusb1-2.0.1-py3.8.egg/usb1/__init__.py", line 120, in raiseUSBError
+    raise __STATUS_TO_EXCEPTION_DICT.get(value, __USBError)(value)
+usb1.USBErrorTimeout: LIBUSB_ERROR_TIMEOUT [-7]
+
+
+
+Traceback (most recent call last):
+  File "/usr/lib/python3.8/threading.py", line 932, in _bootstrap_inner
+    self.run()
+  File "/usr/lib/python3.8/threading.py", line 870, in run
+    self._target(*self._args, **self._kwargs)
+  File "spas_panda.py", line 267, in CAN_tx_thread
+    p.can_send(0x4f4, b"\x00\x00\x00\x00\x00\x00\x00\x00", 0)
+  File "/home/lomal/Desktop/openpilot/panda/python/__init__.py", line 783, in can_send
+    self.can_send_many([[addr, None, dat, bus]], timeout=timeout)
+  File "/home/lomal/Desktop/openpilot/panda/python/__init__.py", line 112, in wrapper
+    return fn(self, *args, **kwargs)
+  File "/home/lomal/Desktop/openpilot/panda/python/__init__.py", line 773, in can_send_many
+    bs = self._handle.bulkWrite(3, tx, timeout=timeout)
+  File "/home/lomal/Desktop/openpilot/panda/python/usb.py", line 21, in bulkWrite
+    return self._libusb_handle.bulkWrite(endpoint, data, timeout)  # type: ignore
+  File "/usr/local/lib/python3.8/dist-packages/libusb1-2.0.1-py3.8.egg/usb1/__init__.py", line 1390, in bulkWrite
+    return self._bulkTransfer(endpoint, data, sizeof(data), timeout)
+  File "/usr/local/lib/python3.8/dist-packages/libusb1-2.0.1-py3.8.egg/usb1/__init__.py", line 1359, in _bulkTransfer
+    mayRaiseUSBError(libusb1.libusb_bulk_transfer(
+  File "/usr/local/lib/python3.8/dist-packages/libusb1-2.0.1-py3.8.egg/usb1/__init__.py", line 128, in mayRaiseUSBError
+    __raiseUSBError(value)
+  File "/usr/local/lib/python3.8/dist-packages/libusb1-2.0.1-py3.8.egg/usb1/__init__.py", line 120, in raiseUSBError
+    raise __STATUS_TO_EXCEPTION_DICT.get(value, __USBError)(value)
+usb1.USBErrorTimeout: LIBUSB_ERROR_TIMEOUT [-7]
+
+
+
+[START DIAGNOSTIC SESSION]
+[HARDWARE/SOFTWARE VERSION]
+ISO-TP: REQUEST - 0x7e0 0x22f191
+ISO-TP: TX - single frame - 0x7e0
+CAN-TX: 0x7e0 - 0x0322f19100000000
+CAN-RX: 0x7e8 - 0x037f221155555555
+ISO-TP: RX - single frame - 0x7e8 idx=0 done=True
+ISO-TP: RESPONSE - 0x7e8 0x7f2211
+Error fetching data from EPS
+
+read data by id: boot software id ...
+ISO-TP: REQUEST - 0x7e0 0x22f180
+ISO-TP: TX - single frame - 0x7e0
+CAN-TX: 0x7e0 - 0x0322f18000000000
+CAN-RX: 0x7e8 - 0x037f221155555555
+ISO-TP: RX - single frame - 0x7e8 idx=0 done=True
+ISO-TP: RESPONSE - 0x7e8 0x7f2211
+READ_DATA_BY_IDENTIFIER - service not supported
+
+read data by id: application software id ...
+ISO-TP: REQUEST - 0x7e0 0x22f181
+ISO-TP: TX - single frame - 0x7e0
+CAN-TX: 0x7e0 - 0x0322f18100000000
+CAN-RX: 0x7e8 - 0x037f221155555555
+ISO-TP: RX - single frame - 0x7e8 idx=0 done=True
+ISO-TP: RESPONSE - 0x7e8 0x7f2211
+READ_DATA_BY_IDENTIFIER - service not supported
+
+read data by id: application data id ...
+ISO-TP: REQUEST - 0x7e0 0x22f182
+ISO-TP: TX - single frame - 0x7e0
+CAN-TX: 0x7e0 - 0x0322f18200000000
+CAN-RX: 0x7e8 - 0x037f221155555555
+ISO-TP: RX - single frame - 0x7e8 idx=0 done=True
+ISO-TP: RESPONSE - 0x7e8 0x7f2211
+READ_DATA_BY_IDENTIFIER - service not supported
+
+read data by id: boot software fingerprint ...
+ISO-TP: REQUEST - 0x7e0 0x22f183
+ISO-TP: TX - single frame - 0x7e0
+CAN-TX: 0x7e0 - 0x0322f18300000000
+CAN-RX: 0x7e8 - 0x037f221155555555
+ISO-TP: RX - single frame - 0x7e8 idx=0 done=True
+ISO-TP: RESPONSE - 0x7e8 0x7f2211
+READ_DATA_BY_IDENTIFIER - service not supported
+
+read data by id: application software fingerprint ...
+ISO-TP: REQUEST - 0x7e0 0x22f184
+ISO-TP: TX - single frame - 0x7e0
+CAN-TX: 0x7e0 - 0x0322f18400000000
+CAN-RX: 0x7e8 - 0x037f221155555555
+ISO-TP: RX - single frame - 0x7e8 idx=0 done=True
+ISO-TP: RESPONSE - 0x7e8 0x7f2211
+READ_DATA_BY_IDENTIFIER - service not supported
+
+read data by id: application data fingerprint ...
+ISO-TP: REQUEST - 0x7e0 0x22f185
+ISO-TP: TX - single frame - 0x7e0
+CAN-TX: 0x7e0 - 0x0322f18500000000
+CAN-RX: 0x7e8 - 0x037f221155555555
+ISO-TP: RX - single frame - 0x7e8 idx=0 done=True
+ISO-TP: RESPONSE - 0x7e8 0x7f2211
+READ_DATA_BY_IDENTIFIER - service not supported
+[DONE]
